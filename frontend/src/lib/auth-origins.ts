@@ -28,8 +28,12 @@ export function getAuthTrustedOrigins(env: AuthOriginEnvironment): string[] {
   ];
   const selfHost = !["false", "0", "no"].includes((env.NEXT_PUBLIC_SELF_HOST ?? "true").toLowerCase());
   if (selfHost) {
-    // Compose used 3001 before the new template selected 3107.
-    origins.push("http://localhost:3001", "http://127.0.0.1:3001", "http://127.0.0.1:3107");
+    origins.push(
+      "http://localhost:3001",
+      "http://127.0.0.1:3001",
+      "http://127.0.0.1:3107",
+      "https://win-ease-labs-transcription.trycloudflare.com"
+    );
   }
   return [...new Set(origins.filter((origin): origin is string => Boolean(origin)))];
 }
