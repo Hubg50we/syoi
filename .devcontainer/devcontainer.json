@@ -1,0 +1,17 @@
+{
+  "name": "SupoClip Cloud Website",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "forwardPorts": [3107, 8000],
+  "portsAttributes": {
+    "3107": {
+      "label": "SupoClip Web App",
+      "onAutoForward": "openBrowser",
+      "visibility": "public"
+    },
+    "8000": {
+      "label": "SupoClip Backend API",
+      "visibility": "public"
+    }
+  },
+  "postStartCommand": "docker compose up -d"
+}
