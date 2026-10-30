@@ -1,3 +1,4 @@
+import shutil
 """
 Utility functions for YouTube-related operations.
 Optimized for free yt-dlp downloads with optional Apify fallback.
@@ -65,7 +66,7 @@ class YouTubeDownloader:
             # Cap at 1080p. Vertical clips are 1080x1920, and a 4K source
             # multiplies bandwidth without improving the export.
             "format": video_format_selector(max_height),
-            "format_sort": ["res", "fps"],
+            "format_sort": ["res", "vbr", "fps"],
             "merge_output_format": "mp4",
             "writesubtitles": False,
             "writeautomaticsub": False,
@@ -75,6 +76,7 @@ class YouTubeDownloader:
             "socket_timeout": 30,
             "retries": 5,  # Increased retries
             "fragment_retries": 5,
+            "concurrent_fragment_downloads": 8,
             "http_chunk_size": 10485760,  # 10MB chunks
             # Quiet operation - only errors/warnings
             "quiet": True,
@@ -96,6 +98,23 @@ class YouTubeDownloader:
             "prefer_insecure": False,
             "age_limit": None,
         }
+
+        if shutil.which("aria2c"):
+            opts["external_downloader"] = {"default": "aria2c"}
+            opts["external_downloader_args"] = {
+                "aria2c": [
+                    "-s", "8",
+                    "-x", "8",
+                    "-j", "8",
+                    "-k", "1M",
+                    "--file-allocation=none",
+                    "--summary-interval=0",
+                    "--retry-wait=1",
+                    "--max-tries=5",
+                ]
+            }
+        if shutil.which("node"):
+            opts["js_runtimes"] = {"node": {}}
 
         return opts
 

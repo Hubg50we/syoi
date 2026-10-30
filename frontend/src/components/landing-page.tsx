@@ -23,7 +23,12 @@ import { FaqSection } from "@/components/landing/faq-section";
 import { EditorSection } from "@/components/landing/editor-section";
 import { FeatureBento } from "@/components/landing/feature-bento";
 import { HeroStage, SourceStickers } from "@/components/landing/hero-stage";
-import { ProductFilm } from "@/components/landing/product-film";
+import dynamic from "next/dynamic";
+
+const ProductFilm = dynamic(
+  () => import("@/components/landing/product-film").then((m) => m.ProductFilm),
+  { ssr: false }
+);
 import { PublishSection } from "@/components/landing/publish-section";
 import { Reveal, SectionHeading } from "@/components/landing/reveal";
 import { CreatorOfferBanner } from "@/components/marketing/creator-offer-banner";

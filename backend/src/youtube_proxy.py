@@ -269,7 +269,8 @@ def base_proxy_params(task_id: Optional[str] = None, video_id: Optional[str] = N
         "socket_timeout": 30,
         "retries": 1,
         "fragment_retries": 1,
-        "concurrent_fragment_downloads": 4,
+        "concurrent_fragment_downloads": 8,
+        "http_chunk_size": 10485760,
         "noplaylist": True,
         "quiet": True,
         "no_warnings": False,
@@ -287,9 +288,23 @@ def base_proxy_params(task_id: Optional[str] = None, video_id: Optional[str] = N
         params["extractor_args"] = {
             "youtubepot-bgutilhttp": {"base_url": [pot_url]},
         }
-    if shutil.which("deno"):
-        # yt-dlp needs a JS runtime for YouTube's player challenge. Prefer the
-        # deno binary installed in the image; do not pin a player client.
+    if shutil.which("aria2c"):
+        params["external_downloader"] = {"default": "aria2c"}
+        params["external_downloader_args"] = {
+            "aria2c": [
+                "-s", "8",
+                "-x", "8",
+                "-j", "8",
+                "-k", "1M",
+                "--file-allocation=none",
+                "--summary-interval=0",
+                "--retry-wait=1",
+                "--max-tries=5",
+            ]
+        }
+    if shutil.which("node"):
+        params["js_runtimes"] = {"node": {}}
+    elif shutil.which("deno"):
         params["js_runtimes"] = {"deno": {}}
     return params
 

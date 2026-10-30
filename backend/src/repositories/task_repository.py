@@ -373,8 +373,9 @@ class TaskRepository:
         db: AsyncSession, user_id: str, limit: int = 50
     ) -> List[Dict[str, Any]]:
         """Get all tasks for a user."""
-        result = await db.execute(
-            text("""
+        where_clause = "WHERE t.user_id = :user_id" if user_id not in ("*", "all") else ""
+        params = {"user_id": user_id, "limit": limit} if user_id not in ("*", "all") else {"limit": limit}
+        sql_query = f"""
                 SELECT t.*, s.title as source_title, s.type as source_type, s.url as source_url,
                        (SELECT COUNT(*) FROM generated_clips WHERE task_id = t.id) as clips_count,
                        (SELECT MAX(virality_score) FROM generated_clips WHERE task_id = t.id) as top_virality_score,
@@ -382,12 +383,11 @@ class TaskRepository:
                         ORDER BY virality_score DESC NULLS LAST, clip_order ASC LIMIT 1) as cover_clip_id
                 FROM tasks t
                 LEFT JOIN sources s ON t.source_id = s.id
-                WHERE t.user_id = :user_id
+                {where_clause}
                 ORDER BY t.created_at DESC
                 LIMIT :limit
-            """),
-            {"user_id": user_id, "limit": limit},
-        )
+        """
+        result = await db.execute(text(sql_query), params)
 
         tasks = []
         for row in result.fetchall():

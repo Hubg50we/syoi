@@ -1,3 +1,10 @@
+try:
+    from faster_whisper import WhisperModel as _FasterWhisperModel
+    _FASTER_WHISPER_AVAILABLE = True
+except ImportError:
+    _FasterWhisperModel = None
+    _FASTER_WHISPER_AVAILABLE = False
+_FASTER_WHISPER_CACHE = {}
 """Transcription helpers for the video pipeline."""
 
 from typing import Any
@@ -189,20 +196,75 @@ def _get_whisper_model(model_name: str = "base"):
 def transcribe_with_whisper(
     video_path: Path, model_name: str = "base", language: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Transcribe video using local Whisper with word-level timestamps.
+    """Transcribe video using local Faster-Whisper (or fallback to Whisper) with word-level timestamps.
 
     ``language`` None lets Whisper detect it; AssemblyAI-style codes such as
     ``en_us`` are reduced to the ISO 639-1 base Whisper expects.
     """
     audio_path = _prepare_audio_for_transcription(video_path)
-    model = _get_whisper_model(model_name)
     whisper_language = language.split("_", 1)[0] if language else None
+
+    if _FASTER_WHISPER_AVAILABLE:
+        try:
+            target_model = model_name or "base"
+            if target_model not in _FASTER_WHISPER_CACHE:
+                logger.info("Loading Faster-Whisper model: %s (int8 on CPU)", target_model)
+                _FASTER_WHISPER_CACHE[target_model] = _FasterWhisperModel(target_model, device="cpu", compute_type="int8")
+            fw_model = _FASTER_WHISPER_CACHE[target_model]
+            logger.info("Starting Faster-Whisper transcription with model: %s (language: %s)", target_model, whisper_language or "auto")
+            prompt = "This video contains clear, accurate real-world English speech." if whisper_language in ("en", None) else None
+            segments, info = fw_model.transcribe(
+                str(audio_path),
+                beam_size=1,
+                word_timestamps=True,
+                condition_on_previous_text=False,
+                temperature=0.0,
+                language=whisper_language,
+                initial_prompt=prompt,
+            )
+            formatted_segments = []
+            full_text_parts = []
+            for seg in segments:
+                words = []
+                if seg.words:
+                    for w in seg.words:
+                        words.append({
+                            "word": w.word,
+                            "start": w.start,
+                            "end": w.end,
+                            "probability": getattr(w, "probability", 1.0),
+                        })
+                formatted_segments.append({
+                    "id": seg.id,
+                    "start": seg.start,
+                    "end": seg.end,
+                    "text": seg.text.strip(),
+                    "words": words,
+                })
+                full_text_parts.append(seg.text.strip())
+
+            return {
+                "text": " ".join(full_text_parts),
+                "language": info.language,
+                "segments": formatted_segments,
+            }
+        except Exception as exc:
+            logger.warning("Faster-whisper failed, falling back to standard whisper: %s", exc)
+
+    model = _get_whisper_model(model_name)
     logger.info(
         "Starting Whisper transcription with model: %s (language: %s)",
         model_name,
         whisper_language or "auto",
     )
-    return model.transcribe(str(audio_path), word_timestamps=True, language=whisper_language)
+    return model.transcribe(
+        str(audio_path),
+        word_timestamps=True,
+        language=whisper_language,
+        fp16=False,
+        condition_on_previous_text=False,
+        temperature=0.0,
+    )
 
 
 def _whisper_result_to_transcript_data(whisper_result: Dict[str, Any]) -> Dict[str, Any]:
@@ -276,7 +338,7 @@ def transcribe_with_youtube_captions(video_url: str) -> Optional[str]:
             "no_warnings": True,
             "writesubtitles": True,
             "writeautomaticsub": True,
-            "subtitleslangs": ["en"],
+            "subtitleslangs": ["en-orig", "en", "en-US", "en-GB", "bn-orig", "bn"],
             "subtitlesformat": "vtt",
             "skip_download": True,
             "outtmpl": str(temp_dir / video_id),
@@ -284,7 +346,17 @@ def transcribe_with_youtube_captions(video_url: str) -> Optional[str]:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([video_url])
 
-        if subs_path.exists():
+        # Prioritize English subtitles, then general
+        candidate_subs = [
+            subs_path,
+            temp_dir / f"{video_id}.en-orig.vtt",
+            temp_dir / f"{video_id}.en-US.vtt",
+            temp_dir / f"{video_id}.bn-orig.vtt",
+            temp_dir / f"{video_id}.bn.vtt",
+        ]
+        chosen_sub = next((p for p in candidate_subs if p.exists() and p.stat().st_size > 0), None)
+        if chosen_sub:
+            subs_path = chosen_sub
             text = subs_path.read_text(encoding="utf-8")
             lines = []
             for line in text.splitlines():
@@ -415,6 +487,12 @@ def _get_transcript_with_assemblyai(
 
 def _get_transcript_with_whisper(video_path: Path, runtime_config) -> str:
     """Get transcript using local Whisper with word-level timestamps."""
+    cached = load_cached_transcript_data(video_path)
+    if cached and cached.get("words"):
+        formatted = format_transcript_for_analysis(cached)
+        if formatted:
+            logger.info("Found valid cached transcript for %s with %d segments. Reusing.", video_path, len(formatted))
+            return "\n".join(formatted)
     model_name = runtime_config.whisper_model
     logger.info("Starting Whisper transcription with model: %s", model_name)
     whisper_result = transcribe_with_whisper(
@@ -495,8 +573,8 @@ def cache_transcript_data(video_path: Path, transcript) -> None:
         "language_code": language_code if isinstance(language_code, str) else None,
     }
 
-    with open(cache_path, "w") as f:
-        json.dump(cache_data, f)
+    with open(cache_path, "w", encoding="utf-8") as f:
+        json.dump(cache_data, f, ensure_ascii=False)
 
     logger.info(f"Cached {len(words_data)} words to {cache_path}")
 
@@ -509,7 +587,7 @@ def load_cached_transcript_data(video_path: Path) -> Optional[Dict]:
         return None
 
     try:
-        with open(cache_path, "r") as f:
+        with open(cache_path, "r", encoding="utf-8", errors="ignore") as f:
             payload = json.load(f)
             if "version" not in payload:
                 payload["version"] = TRANSCRIPT_CACHE_SCHEMA_VERSION
@@ -627,13 +705,24 @@ def format_transcript_for_analysis(transcript) -> List[str]:
     # second-based timings to milliseconds to match the timestamp formatter.
     if isinstance(transcript, dict):
         formatted_lines = []
-        for segment in transcript.get("segments") or []:
-            start_ms = int(segment.get("start", 0) * 1000)
-            end_ms = int(segment.get("end", 0) * 1000)
-            formatted_lines.append(
-                f"[{format_ms_to_timestamp(start_ms)} - {format_ms_to_timestamp(end_ms)}] "
-                f"{segment.get('text', '').strip()}"
-            )
+        segments = transcript.get("segments") or []
+        if segments:
+            for segment in segments:
+                start_ms = int(segment.get("start", 0) * 1000) if isinstance(segment.get("start"), float) else int(segment.get("start", 0))
+                end_ms = int(segment.get("end", 0) * 1000) if isinstance(segment.get("end"), float) else int(segment.get("end", 0))
+                formatted_lines.append(
+                    f"[{format_ms_to_timestamp(start_ms)} - {format_ms_to_timestamp(end_ms)}] "
+                    f"{segment.get('text', '').strip()}"
+                )
+            return formatted_lines
+        for u in transcript.get("utterances") or []:
+            start_ms = u.get("start", 0)
+            end_ms = u.get("end", 0)
+            t = u.get("text", "").strip()
+            if t:
+                formatted_lines.append(
+                    f"[{format_ms_to_timestamp(start_ms)} - {format_ms_to_timestamp(end_ms)}] {t}"
+                )
         return formatted_lines
 
     utterances = getattr(transcript, "utterances", None) or []

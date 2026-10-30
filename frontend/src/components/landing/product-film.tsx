@@ -573,6 +573,10 @@ function Cursor({ x, y, pressed }: { x: MotionValue<number>; y: MotionValue<numb
 export function ProductFilm() {
   const t = useTranslations("marketing");
   const reduceMotion = useReducedMotion();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const scale = useCanvasScale(wrapRef);
@@ -684,7 +688,7 @@ export function ProductFilm() {
             <AnimatePresence>{frame.focus && <FocusDialog key="focus" />}</AnimatePresence>
             <AnimatePresence>{frame.sheet && <PublishSheet key="sheet" frame={frame} />}</AnimatePresence>
             <AnimatePresence>{frame.toast && <Toast key="toast" />}</AnimatePresence>
-            {!reduceMotion && <Cursor x={cursorX} y={cursorY} pressed={pressed} />}
+            {mounted && !reduceMotion && <Cursor x={cursorX} y={cursorY} pressed={pressed} />}
           </div>
         </div>
       </div>

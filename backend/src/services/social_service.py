@@ -365,10 +365,8 @@ class SocialService:
             raise SocialValidationError("Unsupported social platform")
         if not (clip.get("text") or "").strip():
             raise SocialValidationError("This clip has no transcript to draft a caption from.")
-        if not self.config.anthropic_api_key:
-            raise SocialProviderUnavailable("Caption generation requires ANTHROPIC_API_KEY on the server.")
         try:
-            caption = await generate_social_caption(self.config.anthropic_api_key, clip, provider)
+            caption = await generate_social_caption(getattr(self.config, "anthropic_api_key", None), clip, provider)
         except Exception as exc:
             logger.warning("Social caption generation failed (%s)", type(exc).__name__)
             raise SocialProviderUnavailable(

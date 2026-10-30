@@ -192,17 +192,25 @@ GLYPH_FALLBACK_FONT = "TikTokSans-Bold"
 # These draw lowercase letters as capitals; their fallback is uppercased so the
 # clip keeps the same all-caps look.
 CAPS_ONLY_FONTS = frozenset({"THEBOLDFONT"})
+BENGALI_FALLBACK_FONT = "NirmalaUI-Bold"
 
 
 def ensure_glyph_coverage(
     font_family: str, template: Dict[str, Any], texts: Iterable[str]
 ) -> Tuple[str, Dict[str, Any]]:
-    """Swap to GLYPH_FALLBACK_FONT when ``font_family`` cannot draw ``texts``.
+    """Swap to GLYPH_FALLBACK_FONT or BENGALI_FALLBACK_FONT when ``font_family`` cannot draw ``texts``.
 
     libass silently renders missing glyphs from another font, so the free
     THEBOLDFONT (no accented letters) printed "ACTúA" with a lowercase ú taken
     from a system font. One covering font for the whole clip looks consistent.
     """
+    has_bengali = any(0x0980 <= ord(ch) <= 0x09FF for text in texts for ch in text)
+    if has_bengali:
+        bn_font_path = find_font_path(BENGALI_FALLBACK_FONT, allow_all_user_fonts=True)
+        if bn_font_path:
+            logger.info("Detected Bengali script in text; rendering captions with %s", BENGALI_FALLBACK_FONT)
+            return BENGALI_FALLBACK_FONT, {**template, "uppercase": False}
+
     font_path = find_font_path(font_family, allow_all_user_fonts=True)
     fallback_path = find_font_path(GLYPH_FALLBACK_FONT)
     # ass_fonts_dir() points libass at the original font's folder only.

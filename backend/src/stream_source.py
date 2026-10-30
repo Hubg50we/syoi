@@ -251,7 +251,8 @@ def _ydl_options(provider, output, *, audio=False, ranges=None, session=None, so
     c = get_config()
     opts = {
         "outtmpl": str(output), "noplaylist": True, "quiet": True, "no_warnings": True,
-        "retries": 1, "fragment_retries": 3, "socket_timeout": socket_timeout,
+        "retries": 3, "fragment_retries": 5, "socket_timeout": socket_timeout,
+        "concurrent_fragment_downloads": 8, "http_chunk_size": 10485760,
         "max_filesize": c.youtube_download_max_bytes,
     }
     if provider == "proxy":
@@ -276,6 +277,22 @@ def _ydl_options(provider, output, *, audio=False, ranges=None, session=None, so
             {"start_time": a, "end_time": b, "index": i} for i, (a, b) in enumerate(ranges, 1)
         ]
         opts["force_keyframes_at_cuts"] = True
+    if shutil.which("aria2c"):
+        opts["external_downloader"] = {"default": "aria2c"}
+        opts["external_downloader_args"] = {
+            "aria2c": [
+                "-s", "8",
+                "-x", "8",
+                "-j", "8",
+                "-k", "1M",
+                "--file-allocation=none",
+                "--summary-interval=0",
+                "--retry-wait=1",
+                "--max-tries=5",
+            ]
+        }
+    if shutil.which("node"):
+        opts["js_runtimes"] = {"node": {}}
     return opts
 
 

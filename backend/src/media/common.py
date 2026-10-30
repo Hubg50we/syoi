@@ -129,11 +129,11 @@ ANALYSIS_UTTERANCE_SPLIT_THRESHOLD_WORDS = 80
 
 _WHISPER_MODEL_CACHE: Dict[str, Any] = {}
 
-FINAL_VIDEO_CRF = 19
+FINAL_VIDEO_CRF = 16
 
-FINAL_VIDEO_PRESET = "medium"
+FINAL_VIDEO_PRESET = "slow"
 
-INTERMEDIATE_CRF = 16
+INTERMEDIATE_CRF = 14
 
 OUTPUT_FPS = 30
 
@@ -163,6 +163,6 @@ KENBURNS_SUPERSAMPLE_H = 2880
 
 # Mild luma-only sharpen applied after the 9:16 upscale; vertical crops are
 # usually stretched 1.3-2.7x from the source, which softens edges.
-UPSCALE_SHARPEN_FILTER = "unsharp=5:5:0.6:5:5:0.0"
+UPSCALE_SHARPEN_FILTER = "unsharp=5:5:0.8:5:5:0.0"
 
 VERTICAL_SCALE_CHAIN = f"scale=1080:1920:flags=lanczos,{UPSCALE_SHARPEN_FILTER},setsar=1"

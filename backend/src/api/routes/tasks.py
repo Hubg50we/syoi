@@ -329,25 +329,31 @@ async def _load_task_for_user(
 async def _require_task_owner(
     request: Request, task_service: TaskService, db: AsyncSession, task_id: str
 ):
-    """Ensure authenticated user owns the task."""
+    """Ensure authenticated user owns the task, or is an admin, or allow_unsigned_backend_auth."""
     user_id, task = await _load_task_for_user(request, task_service, db, task_id)
+    config = get_config()
 
-    if task.get("user_id") != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized for this task")
+    if (
+        config.allow_unsigned_backend_auth
+        or task.get("user_id") == user_id
+        or await user_is_admin(db, user_id)
+    ):
+        return task
 
-    return task
+    raise HTTPException(status_code=403, detail="Not authorized for this task")
 
 
 async def _require_task_reader(
     request: Request, task_service: TaskService, db: AsyncSession, task_id: str
 ):
-    """Owner, or an admin reading a task that is still active."""
+    """Owner, admin, or in local development."""
     user_id, task = await _load_task_for_user(request, task_service, db, task_id)
+    config = get_config()
 
-    if task.get("user_id") == user_id:
-        return task
-    if task.get("status") in ADMIN_READABLE_TASK_STATUSES and await user_is_admin(
-        db, user_id
+    if (
+        config.allow_unsigned_backend_auth
+        or task.get("user_id") == user_id
+        or await user_is_admin(db, user_id)
     ):
         return task
 
@@ -407,7 +413,10 @@ async def list_tasks(
 
     try:
         task_service = TaskService(db)
-        tasks = await task_service.get_user_tasks(user_id, limit)
+        if await user_is_admin(db, user_id) or get_config().allow_unsigned_backend_auth:
+            tasks = await task_service.get_user_tasks("*", limit)
+        else:
+            tasks = await task_service.get_user_tasks(user_id, limit)
 
         return {"tasks": tasks, "total": len(tasks)}
 

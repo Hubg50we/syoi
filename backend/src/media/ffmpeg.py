@@ -35,8 +35,12 @@ def clamp_even(value: int, minimum: int, maximum: int) -> int:
 
 def run_ffmpeg_command(command: List[str], timeout: int = 900) -> subprocess.CompletedProcess:
     """Run ffmpeg/ffprobe and log stderr on failure."""
+    cmd = list(command)
+    if cmd and "ffmpeg" in cmd[0] and "-threads" not in cmd:
+        cmd.insert(1, "-threads")
+        cmd.insert(2, "0")
     result = subprocess.run(
-        command,
+        cmd,
         capture_output=True,
         text=True,
         timeout=timeout,
@@ -319,7 +323,7 @@ def build_final_video_encode_args(
         "-profile:v", "high",
         "-level", level,
         "-r", str(fps),
-        "-x264-params", "keyint=120:min-keyint=30:scenecut=40",
+        "-maxrate", "16M", "-bufsize", "32M", "-x264-params", "keyint=120:min-keyint=30:scenecut=40",
     ]
 
 

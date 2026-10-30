@@ -89,7 +89,7 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={intlLocale(locale)}>
+    <html lang={intlLocale(locale)} suppressHydrationWarning>
       <head>
         {isDataFastEnabled ? (
           <>
@@ -111,7 +111,7 @@ export default async function RootLayout({
           </>
         ) : null}
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} ${syne.variable} antialiased`}>
+      <body suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${syne.variable} antialiased`}>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <TooltipProvider>
             {children}
