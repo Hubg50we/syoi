@@ -4,6 +4,12 @@
   </a>
 </p>
 
+<p align="center">
+  <a href="https://hubg50we.github.io/syoi/"><img src="https://img.shields.io/badge/Live%20Website-GitHub%20Pages-brightgreen?style=for-the-badge&logo=github" alt="Live Website on GitHub Pages" /></a>
+  &nbsp;
+  <a href="https://codespaces.new/Hubg50we/syoi"><img src="https://img.shields.io/badge/Launch%20Full%20App-GitHub%20Codespaces-orange?style=for-the-badge&logo=githubcodespaces" alt="Launch Full App on GitHub Codespaces" /></a>
+</p>
+
 <h3 align="center">Fuck OpusClip.</h3>
 
 <p align="center">
@@ -36,6 +42,8 @@ SupoClip is an open-source, AI-powered video clipping tool. Give it a long video
 
 | Option | Details |
 |---|---|
+| **Live Website (GitHub Pages)** | [hubg50we.github.io/syoi](https://hubg50we.github.io/syoi/) — Interactive Web Demo, Subtitle Customizer & Studio |
+| **Full App on GitHub (Codespaces)** | [Launch on Codespaces](https://codespaces.new/Hubg50we/syoi) — Runs the entire full-stack app (FastAPI, Whisper, aria2c, Next.js) in GitHub's cloud |
 | **Hosted web app** | [www.supoclip.com](https://www.supoclip.com) — no infrastructure to run |
 | **iOS app** | [SupoClip on the App Store](https://apps.apple.com/us/app/supoclip/id6784760040) — the same hosted pipeline, from your iPhone |
 | **Self-host** | Docker Compose setup below, or the step-by-step [self-hosting tutorial](https://www.supoclip.com/blog/self-host-supoclip-docker) — AGPL-3.0, unlimited usage on your own hardware |
