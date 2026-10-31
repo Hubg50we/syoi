@@ -32,7 +32,7 @@ export function getAuthTrustedOrigins(env: AuthOriginEnvironment): string[] {
       "http://localhost:3001",
       "http://127.0.0.1:3001",
       "http://127.0.0.1:3107",
-      "https://win-ease-labs-transcription.trycloudflare.com"
+      "https://spreading-dining-inter-andale.trycloudflare.com"
     );
   }
   return [...new Set(origins.filter((origin): origin is string => Boolean(origin)))];

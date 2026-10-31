@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { auth } from "@/lib/auth";
+import { getServerSession } from "@/server/session";
 import { buildBackendAuthHeaders } from "@/lib/backend-auth";
 import { backendTraceHeaders } from "@/server/backend-api";
 import { maxVideoUploadBytes, uploadTooLargeMessage } from "@/lib/video-upload";
@@ -10,7 +10,7 @@ import { maxVideoUploadBytes, uploadTooLargeMessage } from "@/lib/video-upload";
 const UPLOAD_FRAMING_BYTES = 1024 * 1024;
 
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getServerSession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
